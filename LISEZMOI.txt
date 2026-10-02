@@ -1,0 +1,21 @@
+TROMBINOSCOPE - mise en ligne sur Netlify (gratuit)
+
+1. Crée un compte gratuit sur https://github.com puis un nouveau dépôt
+   PRIVÉ nommé "trombinoscope".
+2. Dans le dépôt : "Add file" > "Upload files", glisse TOUT le contenu
+   de ce dossier (public, netlify, netlify.toml, package.json), puis
+   "Commit changes".
+3. Sur https://app.netlify.com : "Add new site" > "Import an existing
+   project" > GitHub > choisis "trombinoscope". Laisse les réglages par
+   défaut.
+4. Site configuration > Environment variables > Add a variable
+      Clé    : SITE_PASSWORD
+      Valeur : ton code d'accès (au moins 6 caractères, idéalement 10+)
+   Puis Deploys > "Trigger deploy" > "Deploy site".
+5. Ouvre l'adresse du site, entre le code : c'est prêt.
+
+Changer le code : modifie SITE_PASSWORD puis redéploie. Toutes les
+personnes connectées sont alors déconnectées.
+
+Où sont les photos ? Dans le stockage privé de ton site Netlify
+(Netlify Blobs). Elles ne sont jamais servies sans le code.

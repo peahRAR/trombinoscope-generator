@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Trombinoscope</title>
+<style>
+  :root{
+    --bg:#f6f7f4; --panel:#fff; --fg:#1d2420; --muted:#66706a;
+    --line:#dde2dc; --accent:#2f6b4f; --accent-fg:#fff; --danger:#b23a2e;
+    --font:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{--bg:#151a17;--panel:#1e2420;--fg:#e8ece9;--muted:#9aa49e;--line:#323a35;--accent:#6fbf95;--accent-fg:#0f1712;--danger:#ef7d70;color-scheme:dark}
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;font:15px/1.4 var(--font);background:var(--bg);color:var(--fg)}
+  input,select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);min-width:0;width:100%}
+  label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+  .btn{font:inherit;padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;white-space:nowrap}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+  .btn.danger{color:var(--danger)}
+  .btn.danger.sure{background:var(--danger);color:#fff;border-color:var(--danger)}
+  .btn:disabled{opacity:.5;cursor:wait}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .hint{font-size:12px;color:var(--muted);margin:0}
+  .err{color:var(--danger);font-size:13px;min-height:1.2em;margin:0}
+
+  /* Connexion */
+  #login{min-height:100vh;display:grid;place-items:center;padding:16px}
+  #login form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:28px;width:min(340px,100%);display:flex;flex-direction:column;gap:14px}
+  #login h1{margin:0;font-size:22px}
+
+  /* Application */
+  .app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+  aside{background:var(--panel);border-right:1px solid var(--line);padding:20px 16px;display:flex;flex-direction:column;gap:10px}
+  aside h1{font-size:18px;margin:0 0 6px}
+  .classes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+  .classes button{width:100%;text-align:left;border:0;background:none;color:var(--fg);padding:8px 10px;border-radius:6px;cursor:pointer;font:inherit;display:flex;justify-content:space-between;gap:8px}
+  .classes button:hover{background:var(--bg)}
+  .classes button.on{background:var(--accent);color:var(--accent-fg)}
+  .classes small{opacity:.7;font-variant-numeric:tabular-nums}
+  .spacer{flex:1}
+  main{padding:20px 24px;min-width:0}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px}
+  .toolbar h2{margin:0;font-size:22px;flex:1;min-width:150px}
+  .toolbar select{width:auto}
+  .drop{border:2px dashed var(--line);border-radius:10px;padding:18px;text-align:center;color:var(--muted);margin-bottom:18px;cursor:pointer}
+  .drop.over{border-color:var(--accent);color:var(--accent)}
+  .grid{display:grid;grid-template-columns:repeat(var(--cols,6),1fr);gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;cursor:pointer;text-align:center;font:inherit;color:var(--fg)}
+  .card:hover{border-color:var(--accent)}
+  .card img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:4px;background:var(--bg);display:block}
+  .card span{font-weight:600}
+  .empty{color:var(--muted);padding:40px 0;text-align:center;grid-column:1/-1}
+  .print-title{display:none}
+
+  /* Fenêtre prénom / classe */
+  dialog{border:0;border-radius:12px;padding:0;background:var(--panel);color:var(--fg);width:min(380px,calc(100% - 32px))}
+  dialog::backdrop{background:rgb(0 0 0 / .5)}
+  dialog form{padding:20px;display:flex;flex-direction:column;gap:12px}
+  dialog h3{margin:0;font-size:17px;display:flex;justify-content:space-between}
+  dialog h3 small{color:var(--muted);font-weight:400}
+  dialog img{width:150px;aspect-ratio:3/4;object-fit:cover;border-radius:6px;align-self:center;background:var(--bg)}
+  .actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+  .actions .left{margin-right:auto}
+
+  @media (max-width:700px){.app{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line)}.grid{grid-template-columns:repeat(3,1fr)!important}}
+  @media print{
+    @page{size:A4 portrait;margin:12mm}
+    body{background:#fff;color:#000}
+    aside,.toolbar,.drop{display:none!important}
+    .app{display:block} main{padding:0}
+    .print-title{display:block;text-align:center;font-size:22pt;margin:0 0 10mm}
+    .card{border:0;padding:0;break-inside:avoid;background:#fff;color:#000}
+    .grid{gap:6mm}
+  }
+</style>
+</head>
+<body>
+
+<div id="login" hidden>
+  <form id="loginForm">
+    <h1>Trombinoscope</h1>
+    <p class="hint">Accès réservé. Entre le code pour voir les photos.</p>
+    <label>Code d'accès<input type="password" id="pwd" autocomplete="current-password" required autofocus></label>
+    <p class="err" id="loginErr"></p>
+    <button class="btn primary" id="loginBtn">Entrer</button>
+  </form>
+</div>
+
+<div class="app" id="app" hidden>
+  <aside>
+    <h1>Trombinoscope</h1>
+    <ul class="classes" id="classes"></ul>
+    <div class="spacer"></div>
+    <button class="btn" id="logoutBtn">Se déconnecter</button>
+  </aside>
+  <main>
+    <div class="toolbar">
+      <h2 id="title">Toutes les classes</h2>
+      <select id="cols" aria-label="Photos par ligne"><option value="4">4 par ligne</option><option value="5">5 par ligne</option><option value="6" selected>6 par ligne</option><option value="7">7 par ligne</option><option value="8">8 par ligne</option></select>
+      <button class="btn primary" id="printBtn">Imprimer / PDF</button>
+    </div>
+    <div class="drop" id="drop">
+      <strong>+ Ajouter des photos</strong> : clique ici ou glisse les photos (plusieurs à la fois).<br>
+      <span class="hint">Pour chaque photo, on te demandera le prénom et la classe.</span>
+    </div>
+    <input type="file" id="files" accept="image/*" multiple hidden>
+    <h1 class="print-title" id="printTitle"></h1>
+    <div class="grid" id="grid"></div>
+  </main>
+</div>
+
+<dialog id="dlg">
+  <form id="dlgForm" method="dialog">
+    <h3><span id="dlgTitle">Nouvel élève</span><small id="dlgCount"></small></h3>
+    <img id="dlgImg" alt="">
+    <label>Prénom<input type="text" id="fName" required maxlength="60" autocomplete="off"></label>
+    <label>Classe<input type="text" id="fClass" required maxlength="40" list="classList" autocomplete="off" placeholder="ex : CM2 A"></label>
+    <datalist id="classList"></datalist>
+    <p class="err" id="dlgErr"></p>
+    <div class="actions">
+      <button type="button" class="btn danger left" id="dlgDelete" hidden>Supprimer</button>
+      <button type="button" class="btn" id="dlgSkip">Annuler</button>
+      <button type="submit" class="btn primary" id="dlgOk">Enregistrer</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+let students = [];
+let current = null;           // classe affichée (null = toutes)
+const ALL = null;
+
+async function api(path, opts = {}) {
+  const r = await fetch('/api/' + path, { credentials: 'same-origin', ...opts });
+  if (r.status === 401 && path !== 'login') { showLogin(); throw new Error('Non connecté'); }
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || 'Erreur');
+  return body;
+}
+
+/* ---------- Connexion ---------- */
+function showLogin(){ $('app').hidden = true; $('login').hidden = false; $('pwd').focus(); }
+$('loginForm').onsubmit = async e => {
+  e.preventDefault(); $('loginErr').textContent = ''; $('loginBtn').disabled = true;
+  try { await api('login', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ password: $('pwd').value }) });
+        $('pwd').value = ''; await start(); }
+  catch(err){ $('loginErr').textContent = err.message; }
+  $('loginBtn').disabled = false;
+};
+$('logoutBtn').onclick = async () => { await api('logout', { method:'POST' }).catch(()=>{}); students = []; render(); showLogin(); };
+
+async function start(){
+  const d = await api('students');
+  students = d.students || [];
+  $('login').hidden = true; $('app').hidden = false;
+  render();
+}
+
+/* ---------- Affichage ---------- */
+const classes = () => [...new Set(students.map(s => s.className))].sort((a,b) => a.localeCompare(b,'fr',{numeric:true}));
+
+function render(){
+  const cls = classes();
+  if (current && !cls.includes(current)) current = ALL;
+  const ul = $('classes'); ul.innerHTML = '';
+  const item = (label, value, n) => {
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.className = current === value ? 'on' : '';
+    b.innerHTML = '<span></span><small></small>';
+    b.children[0].textContent = label; b.children[1].textContent = n;
+    b.onclick = () => { current = value; render(); };
+    li.append(b); ul.append(li);
+  };
+  item('Toutes les classes', ALL, students.length);
+  cls.forEach(c => item(c, c, students.filter(s => s.className === c).length));
+  $('classList').innerHTML = ''; cls.forEach(c => { const o = document.createElement('option'); o.value = c; $('classList').append(o); });
+
+  const title = current || 'Toutes les classes';
+  $('title').textContent = title; $('printTitle').textContent = title;
+  let cols = '6'; try { cols = localStorage.getItem('trombi-cols') || '6'; } catch(e){}
+  $('cols').value = cols; $('grid').style.setProperty('--cols', cols);
+
+  const list = students.filter(s => !current || s.className === current)
+    .sort((a,b) => (current ? 0 : a.className.localeCompare(b.className,'fr',{numeric:true})) || a.name.localeCompare(b.name,'fr'));
+  const g = $('grid'); g.innerHTML = '';
+  if (!list.length) { g.innerHTML = '<p class="empty">Aucun élève pour l’instant. Ajoute des photos ci-dessus.</p>'; return; }
+  list.forEach(s => {
+    const b = document.createElement('button'); b.className = 'card'; b.title = 'Modifier';
+    b.innerHTML = '<img alt="" loading="lazy"><span></span>';
+    b.querySelector('img').src = '/api/photo/' + s.id;
+    b.querySelector('span').textContent = s.name;
+    b.onclick = () => editStudent(s);
+    g.append(b);
+  });
+}
+$('cols').onchange = () => { try { localStorage.setItem('trombi-cols', $('cols').value); } catch(e){} render(); };
+$('printBtn').onclick = () => window.print();
+
+/* ---------- Photos : réduction avant envoi (3:4, 360x480) ---------- */
+function resize(file){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const W = 360, H = 480, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+      const r = Math.max(W / img.width, H / img.height), w = img.width * r, h = img.height * r;
+      cv.getContext('2d').drawImage(img, (W - w) / 2, (H - h) / 2.5, w, h);
+      URL.revokeObjectURL(img.src);
+      cv.toBlob(b => b ? res(b) : rej(new Error('Image illisible')), 'image/jpeg', 0.82);
+    };
+    img.onerror = () => rej(new Error('Image illisible'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+/* ---------- Fenêtre prénom / classe ---------- */
+let dlgResolve = null;
+function askDialog({ title, count, imgSrc, name = '', className = '', canDelete = false, skipLabel = 'Annuler' }){
+  $('dlgTitle').textContent = title; $('dlgCount').textContent = count || '';
+  $('dlgImg').src = imgSrc; $('fName').value = name; $('fClass').value = className;
+  $('dlgErr').textContent = ''; $('dlgDelete').hidden = !canDelete;
+  $('dlgDelete').classList.remove('sure'); $('dlgDelete').textContent = 'Supprimer';
+  $('dlgSkip').textContent = skipLabel; $('dlgOk').disabled = false;
+  $('dlg').showModal(); $('fName').focus();
+  return new Promise(r => dlgResolve = r);
+}
+function closeDlg(result){ const r = dlgResolve; dlgResolve = null; $('dlg').close(); r && r(result); }
+$('dlgSkip').onclick = () => closeDlg({ action:'skip' });
+$('dlg').addEventListener('cancel', e => { e.preventDefault(); closeDlg({ action:'skip' }); });
+$('dlgDelete').onclick = () => {
+  const b = $('dlgDelete');
+  if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = 'Confirmer la suppression'; return; }
+  closeDlg({ action:'delete' });
+};
+// Pendant l'enregistrement, la fenêtre reste ouverte (erreurs affichées dedans)
+let onSave = null;
+$('dlgForm').onsubmit = async e => {
+  e.preventDefault();
+  const name = $('fName').value.trim(), className = $('fClass').value.trim();
+  if (!name || !className) { $('dlgErr').textContent = 'Le prénom et la classe sont obligatoires.'; return; }
+  $('dlgOk').disabled = true;
+  try { await onSave({ name, className }); closeDlg({ action:'saved', className }); }
+  catch(err){ $('dlgErr').textContent = err.message; $('dlgOk').disabled = false; }
+};
+
+async function addFiles(files){
+  files = files.filter(f => f.type.startsWith('image/'));
+  let lastClass = current || '';
+  for (let i = 0; i < files.length; i++){
+    let blob;
+    try { blob = await resize(files[i]); } catch(e){ alert(files[i].name + ' : image illisible, ignorée.'); continue; }
+    const preview = URL.createObjectURL(blob);
+    onSave = async ({ name, className }) => {
+      const fd = new FormData();
+      fd.append('name', name); fd.append('className', className); fd.append('photo', blob, 'photo.jpg');
+      const s = await api('students', { method:'POST', body: fd });
+      students.push(s); render();
+    };
+    const r = await askDialog({ title:'Nouvel élève', count: files.length > 1 ? `photo ${i+1} sur ${files.length}` : '',
+                                imgSrc: preview, className: lastClass, skipLabel: files.length > 1 ? 'Ignorer cette photo' : 'Annuler' });
+    URL.revokeObjectURL(preview);
+    if (r.action === 'saved') lastClass = r.className;
+  }
+  if (lastClass) { current = lastClass; render(); }
+}
+
+async function editStudent(s){
+  onSave = async ({ name, className }) => {
+    const u = await api('students/' + s.id, { method:'PATCH', headers:{'content-type':'application/json'}, body: JSON.stringify({ name, className }) });
+    Object.assign(s, u); render();
+  };
+  const r = await askDialog({ title:'Modifier', imgSrc:'/api/photo/' + s.id, name:s.name, className:s.className, canDelete:true });
+  if (r.action === 'delete') {
+    try { await api('students/' + s.id, { method:'DELETE' }); students = students.filter(x => x !== s); render(); }
+    catch(err){ alert('Suppression impossible : ' + err.message); }
+  }
+}
+
+/* ---------- Dépôt de fichiers ---------- */
+const drop = $('drop');
+drop.onclick = () => $('files').click();
+$('files').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); addFiles([...e.dataTransfer.files]); };
+
+start().catch(() => showLogin());
+</script>
+</body>
+</html>
