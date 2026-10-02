@@ -33,6 +33,12 @@
   #login{min-height:100vh;display:grid;place-items:center;padding:16px}
   #login form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:28px;width:min(340px,100%);display:flex;flex-direction:column;gap:14px}
   #login h1{margin:0;font-size:22px}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .pwd-wrap{position:relative;display:block}
+  .pwd-wrap input{padding-right:40px}
+  .eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:4px;display:flex}
+  .eye:hover{color:var(--fg)}
+  .eye svg{width:20px;height:20px}
 
   /* Application */
   .app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
@@ -86,7 +92,14 @@
   <form id="loginForm">
     <h1>Trombinoscope</h1>
     <p class="hint">Accès réservé. Entre le code pour voir les photos.</p>
-    <label>Code d'accès<input type="password" id="pwd" autocomplete="current-password" required autofocus></label>
+    <div class="field"><label for="pwd">Code d'accès</label>
+    <span class="pwd-wrap">
+      <input type="password" id="pwd" autocomplete="current-password" required autofocus>
+      <button type="button" class="eye" id="eyeBtn" aria-label="Afficher le code" aria-pressed="false">
+        <svg id="eyeOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        <svg id="eyeOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.7 8.5 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.8-1.3"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+      </button>
+    </span></div>
     <p class="err" id="loginErr"></p>
     <button class="btn primary" id="loginBtn">Entrer</button>
   </form>
@@ -146,11 +159,14 @@ async function api(path, opts = {}) {
 }
 
 /* ---------- Connexion ---------- */
-function showLogin(){ $('app').hidden = true; $('login').hidden = false; $('pwd').focus(); }
+function setPwdVisible(v){ $('pwd').type = v ? 'text' : 'password'; $('eyeOn').hidden = v; $('eyeOff').hidden = !v;
+  $('eyeBtn').setAttribute('aria-pressed', v); $('eyeBtn').setAttribute('aria-label', v ? 'Masquer le code' : 'Afficher le code'); }
+$('eyeBtn').onclick = () => { setPwdVisible($('pwd').type === 'password'); $('pwd').focus(); };
+function showLogin(){ setPwdVisible(false); $('app').hidden = true; $('login').hidden = false; $('pwd').focus(); }
 $('loginForm').onsubmit = async e => {
   e.preventDefault(); $('loginErr').textContent = ''; $('loginBtn').disabled = true;
   try { await api('login', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ password: $('pwd').value }) });
-        $('pwd').value = ''; await start(); }
+        $('pwd').value = ''; setPwdVisible(false); await start(); }
   catch(err){ $('loginErr').textContent = err.message; }
   $('loginBtn').disabled = false;
 };
