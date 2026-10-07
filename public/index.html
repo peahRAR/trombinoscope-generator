@@ -76,7 +76,7 @@
 
   @media (max-width:700px){.app{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line)}.grid{grid-template-columns:repeat(3,1fr)!important}}
   @media print{
-    @page{size:A4 portrait;margin:12mm}
+    @page{margin:12mm}
     body{background:#fff;color:#000}
     aside,.toolbar,.drop{display:none!important}
     .app{display:block} main{padding:0}
@@ -85,6 +85,7 @@
     .grid{gap:6mm}
   }
 </style>
+<style id="pageOrient">@page{size:A4 portrait}</style>
 </head>
 <body>
 
@@ -117,6 +118,7 @@
     <div class="toolbar">
       <h2 id="title">Toutes les classes</h2>
       <select id="cols" aria-label="Photos par ligne"><option value="4">4 par ligne</option><option value="5">5 par ligne</option><option value="6" selected>6 par ligne</option><option value="7">7 par ligne</option><option value="8">8 par ligne</option></select>
+      <select id="orient" aria-label="Orientation d'impression"><option value="portrait">Portrait</option><option value="landscape">Paysage</option></select>
       <button class="btn primary" id="printBtn">Imprimer / PDF</button>
     </div>
     <div class="drop" id="drop">
@@ -221,6 +223,11 @@ function render(){
 }
 $('cols').onchange = () => { try { localStorage.setItem('trombi-cols', $('cols').value); } catch(e){} render(); };
 $('printBtn').onclick = () => window.print();
+
+/* Orientation de la page imprimée */
+function setOrient(o){ $('orient').value = o; $('pageOrient').textContent = '@page{size:A4 ' + o + '}'; }
+try { setOrient(localStorage.getItem('trombi-orient') === 'landscape' ? 'landscape' : 'portrait'); } catch(e){}
+$('orient').onchange = () => { setOrient($('orient').value); try { localStorage.setItem('trombi-orient', $('orient').value); } catch(e){} };
 
 /* ---------- Photos : réduction avant envoi (3:4, 360x480) ---------- */
 function resize(file){
