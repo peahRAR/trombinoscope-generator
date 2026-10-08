@@ -46,7 +46,7 @@ export default async (req) => {
       return json(await loadIndex());
     }
 
-    // Ajout d'un élève : formulaire avec name, className, photo
+    // Ajout d'un élève : formulaire avec name, className, photo, noPhotoRights, whatsapp
     if (path === "students" && method === "POST") {
       const form = await req.formData();
       const name = clean(form.get("name"));
@@ -60,7 +60,11 @@ export default async (req) => {
       const id = crypto.randomUUID();
       await photos().set(id, await photo.arrayBuffer(), { metadata: { type: photo.type } });
       const idx = await loadIndex();
-      const student = { id, name, className, added: Date.now() };
+      const student = {
+        id, name, className, added: Date.now(),
+        noPhotoRights: form.get("noPhotoRights") === "1",
+        whatsapp: form.get("whatsapp") === "1",
+      };
       idx.students.push(student);
       await saveIndex(idx);
       return json(student, 201);
@@ -75,6 +79,8 @@ export default async (req) => {
       if (!s) return json({ error: "Élève introuvable" }, 404);
       if (body.name !== undefined && clean(body.name)) s.name = clean(body.name);
       if (body.className !== undefined && clean(body.className, 40)) s.className = clean(body.className, 40);
+      if (typeof body.noPhotoRights === "boolean") s.noPhotoRights = body.noPhotoRights;
+      if (typeof body.whatsapp === "boolean") s.whatsapp = body.whatsapp;
       await saveIndex(idx);
       return json(s);
     }

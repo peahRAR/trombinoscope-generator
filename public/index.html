@@ -61,6 +61,15 @@
   .card:hover{border-color:var(--accent)}
   .card img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:4px;background:var(--bg);display:block}
   .card span{font-weight:600}
+  .ph{position:relative;display:block}
+  .badge{position:absolute;top:5px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#fff;box-shadow:0 1px 3px rgb(0 0 0 / .35);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .badge svg{width:62%;height:62%}
+  .badge.cam{left:5px;background:#c0392b}
+  .badge.wa{right:5px;background:#25d366}
+  .grid.hide-cam .badge.cam,.grid.hide-wa .badge.wa{display:none}
+  .check{flex-direction:row;align-items:center;gap:6px;font-size:14px;color:var(--fg);cursor:pointer}
+  .check input{width:auto;margin:0;accent-color:var(--accent)}
+  .toolbar .check{font-size:13px;color:var(--muted)}
   .empty{color:var(--muted);padding:40px 0;text-align:center;grid-column:1/-1}
   .print-title{display:none}
 
@@ -119,6 +128,8 @@
       <h2 id="title">Toutes les classes</h2>
       <select id="cols" aria-label="Photos par ligne"><option value="4">4 par ligne</option><option value="5">5 par ligne</option><option value="6" selected>6 par ligne</option><option value="7">7 par ligne</option><option value="8">8 par ligne</option></select>
       <select id="orient" aria-label="Orientation d'impression"><option value="portrait">Portrait</option><option value="landscape">Paysage</option></select>
+      <label class="check" title="Afficher l'icône sur les photos"><input type="checkbox" id="showCam" checked>Droit à l'image</label>
+      <label class="check" title="Afficher l'icône sur les photos"><input type="checkbox" id="showWa" checked>WhatsApp</label>
       <button class="btn primary" id="printBtn">Imprimer / PDF</button>
     </div>
     <div class="drop" id="drop">
@@ -138,6 +149,8 @@
     <label>Prénom<input type="text" id="fName" required maxlength="60" autocomplete="off"></label>
     <label>Classe<input type="text" id="fClass" required maxlength="40" list="classList" autocomplete="off" placeholder="ex : CM2 A"></label>
     <datalist id="classList"></datalist>
+    <label class="check"><input type="checkbox" id="fNoRights">Les parents refusent le droit à l'image</label>
+    <label class="check"><input type="checkbox" id="fWa">Les parents ont rejoint le groupe WhatsApp</label>
     <p class="err" id="dlgErr"></p>
     <div class="actions">
       <button type="button" class="btn danger left" id="dlgDelete" hidden>Supprimer</button>
@@ -207,6 +220,8 @@ function render(){
   $('title').textContent = title; $('printTitle').textContent = title;
   let cols = '6'; try { cols = localStorage.getItem('trombi-cols') || '6'; } catch(e){}
   $('cols').value = cols; $('grid').style.setProperty('--cols', cols);
+  $('grid').classList.toggle('hide-cam', !$('showCam').checked);
+  $('grid').classList.toggle('hide-wa', !$('showWa').checked);
 
   const list = students.filter(s => !current || s.className === current)
     .sort((a,b) => (current ? 0 : a.className.localeCompare(b.className,'fr',{numeric:true})) || a.name.localeCompare(b.name,'fr'));
@@ -214,15 +229,24 @@ function render(){
   if (!list.length) { g.innerHTML = '<p class="empty">Aucun élève pour l’instant. Ajoute des photos ci-dessus.</p>'; return; }
   list.forEach(s => {
     const b = document.createElement('button'); b.className = 'card'; b.title = 'Modifier';
-    b.innerHTML = '<img alt="" loading="lazy"><span></span>';
+    b.innerHTML = '<span class="ph"><img alt="" loading="lazy">'
+      + (s.noPhotoRights ? '<i class="badge cam" title="Pas de droit à l\'image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 2l20 20"/><path d="M7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16"/><path d="M9.5 4h5L17 7h3a2 2 0 0 1 2 2v7.5"/><path d="M14.12 15.12A3 3 0 1 1 9.88 10.88"/></svg></i>' : '')
+      + (s.whatsapp ? '<i class="badge wa" title="Parents dans le groupe WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path transform="translate(7.6 7.6) scale(.37)" fill="currentColor" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></i>' : '')
+      + '</span><span></span>';
     b.querySelector('img').src = '/api/photo/' + s.id;
-    b.querySelector('span').textContent = s.name;
+    b.querySelector('.ph + span').textContent = s.name;
     b.onclick = () => editStudent(s);
     g.append(b);
   });
 }
 $('cols').onchange = () => { try { localStorage.setItem('trombi-cols', $('cols').value); } catch(e){} render(); };
 $('printBtn').onclick = () => window.print();
+
+/* Affichage des icônes droit à l'image / WhatsApp (mémorisé sur ce navigateur) */
+['showCam','showWa'].forEach(id => {
+  try { if (localStorage.getItem('trombi-' + id) === '0') $(id).checked = false; } catch(e){}
+  $(id).onchange = () => { try { localStorage.setItem('trombi-' + id, $(id).checked ? '1' : '0'); } catch(e){} render(); };
+});
 
 /* Orientation de la page imprimée */
 function setOrient(o){ $('orient').value = o; $('pageOrient').textContent = '@page{size:A4 ' + o + '}'; }
@@ -247,9 +271,10 @@ function resize(file){
 
 /* ---------- Fenêtre prénom / classe ---------- */
 let dlgResolve = null;
-function askDialog({ title, count, imgSrc, name = '', className = '', canDelete = false, skipLabel = 'Annuler' }){
+function askDialog({ title, count, imgSrc, name = '', className = '', noPhotoRights = false, whatsapp = false, canDelete = false, skipLabel = 'Annuler' }){
   $('dlgTitle').textContent = title; $('dlgCount').textContent = count || '';
   $('dlgImg').src = imgSrc; $('fName').value = name; $('fClass').value = className;
+  $('fNoRights').checked = noPhotoRights; $('fWa').checked = whatsapp;
   $('dlgErr').textContent = ''; $('dlgDelete').hidden = !canDelete;
   $('dlgDelete').classList.remove('sure'); $('dlgDelete').textContent = 'Supprimer';
   $('dlgSkip').textContent = skipLabel; $('dlgOk').disabled = false;
@@ -271,7 +296,8 @@ $('dlgForm').onsubmit = async e => {
   const name = $('fName').value.trim(), className = $('fClass').value.trim();
   if (!name || !className) { $('dlgErr').textContent = 'Le prénom et la classe sont obligatoires.'; return; }
   $('dlgOk').disabled = true;
-  try { await onSave({ name, className }); closeDlg({ action:'saved', className }); }
+  const noPhotoRights = $('fNoRights').checked, whatsapp = $('fWa').checked;
+  try { await onSave({ name, className, noPhotoRights, whatsapp }); closeDlg({ action:'saved', className }); }
   catch(err){ $('dlgErr').textContent = err.message; $('dlgOk').disabled = false; }
 };
 
@@ -282,9 +308,10 @@ async function addFiles(files){
     let blob;
     try { blob = await resize(files[i]); } catch(e){ alert(files[i].name + ' : image illisible, ignorée.'); continue; }
     const preview = URL.createObjectURL(blob);
-    onSave = async ({ name, className }) => {
+    onSave = async ({ name, className, noPhotoRights, whatsapp }) => {
       const fd = new FormData();
       fd.append('name', name); fd.append('className', className); fd.append('photo', blob, 'photo.jpg');
+      fd.append('noPhotoRights', noPhotoRights ? '1' : '0'); fd.append('whatsapp', whatsapp ? '1' : '0');
       const s = await api('students', { method:'POST', body: fd });
       students.push(s); render();
     };
@@ -297,11 +324,12 @@ async function addFiles(files){
 }
 
 async function editStudent(s){
-  onSave = async ({ name, className }) => {
-    const u = await api('students/' + s.id, { method:'PATCH', headers:{'content-type':'application/json'}, body: JSON.stringify({ name, className }) });
+  onSave = async ({ name, className, noPhotoRights, whatsapp }) => {
+    const u = await api('students/' + s.id, { method:'PATCH', headers:{'content-type':'application/json'}, body: JSON.stringify({ name, className, noPhotoRights, whatsapp }) });
     Object.assign(s, u); render();
   };
-  const r = await askDialog({ title:'Modifier', imgSrc:'/api/photo/' + s.id, name:s.name, className:s.className, canDelete:true });
+  const r = await askDialog({ title:'Modifier', imgSrc:'/api/photo/' + s.id, name:s.name, className:s.className,
+                               noPhotoRights: !!s.noPhotoRights, whatsapp: !!s.whatsapp, canDelete:true });
   if (r.action === 'delete') {
     try { await api('students/' + s.id, { method:'DELETE' }); students = students.filter(x => x !== s); render(); }
     catch(err){ alert('Suppression impossible : ' + err.message); }
