@@ -19,6 +19,12 @@ async function loadIndex() {
 }
 const saveIndex = (idx) => meta().setJSON("index", idx);
 
+// Fiches détaillées : chiffrées dans le navigateur (AES-GCM), le serveur ne voit que du chiffré.
+const B64 = /^[A-Za-z0-9+/]+={0,2}$/;
+const isCipher = (c) =>
+  c && typeof c === "object" && typeof c.iv === "string" && typeof c.ct === "string" &&
+  c.iv.length <= 32 && c.ct.length <= 20000 && B64.test(c.iv) && B64.test(c.ct);
+
 export default async (req) => {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/api\/?/, "");
@@ -40,6 +46,20 @@ export default async (req) => {
 
     // --- Tout le reste exige d'être connecté ---
     if (!isLoggedIn(req)) return json({ error: "Non connecté" }, 401);
+
+    // Coffre des fiches détaillées : sel + valeur témoin pour vérifier la phrase secrète
+    if (path === "vault" && method === "GET") {
+      return json((await meta().get("vault", { type: "json" })) || null);
+    }
+    if (path === "vault" && method === "PUT") {
+      if (await meta().get("vault")) return json({ error: "La phrase secrète existe déjà" }, 409);
+      const v = await req.json().catch(() => ({}));
+      if (typeof v.salt !== "string" || !B64.test(v.salt) || !Number.isInteger(v.iter) || v.iter < 100000 || !isCipher(v.check))
+        return json({ error: "Données invalides" }, 400);
+      const vault = { salt: v.salt, iter: v.iter, check: { iv: v.check.iv, ct: v.check.ct } };
+      await meta().setJSON("vault", vault);
+      return json(vault, 201);
+    }
 
     // Liste des élèves
     if (path === "students" && method === "GET") {
@@ -81,6 +101,11 @@ export default async (req) => {
       if (body.className !== undefined && clean(body.className, 40)) s.className = clean(body.className, 40);
       if (typeof body.noPhotoRights === "boolean") s.noPhotoRights = body.noPhotoRights;
       if (typeof body.whatsapp === "boolean") s.whatsapp = body.whatsapp;
+      if (body.secure === null) delete s.secure;
+      else if (body.secure !== undefined) {
+        if (!isCipher(body.secure)) return json({ error: "Fiche chiffrée invalide" }, 400);
+        s.secure = { iv: body.secure.iv, ct: body.secure.ct };
+      }
       await saveIndex(idx);
       return json(s);
     }
