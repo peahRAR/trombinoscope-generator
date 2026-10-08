@@ -1,4 +1,4 @@
-// Import des fiches de renseignement (.docx) dans les fiches détaillées chiffrées.
+// Import des fiches de renseignement (.docx) dans les fiches détaillées du site.
 //
 //   node scripts/import-fiches.mjs <dossier>            simulation : n'écrit rien
 //   node scripts/import-fiches.mjs <dossier> --apply    enregistre sur le site
@@ -6,7 +6,6 @@
 // À mettre dans .env (jamais commité) :
 //   SITE_URL=https://ton-site.netlify.app
 //   SITE_PASSWORD=le code d'accès du site
-// La phrase secrète des fiches est demandée au lancement (ou FICHES_PASSPHRASE dans l'environnement).
 //
 // Le script n'affiche aucune donnée personnelle hormis le prénom et le nom du fichier.
 // Il ne crée pas d'élève : il complète ceux déjà présents, reconnus par leur prénom.
@@ -14,11 +13,9 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, basename } from "node:path";
-import readline from "node:readline";
-
-const VAULT_CHECK = "trombi-fiches-v1";
 
 /* ---------- Paramètres ---------- */
+process.on("uncaughtException", (e) => { console.error("Erreur : " + e.message); process.exit(1); });
 const args = process.argv.slice(2);
 const APPLY = args.includes("--apply");
 const dir = args.find((a) => !a.startsWith("--"));
@@ -91,24 +88,6 @@ function parseDocx(file) {
   return { fields: f, hasPhoto: others.length > 0, noPhotoRights: others.length > 1 };
 }
 
-/* ---------- Chiffrement (identique au site) ---------- */
-const b64 = (buf) => Buffer.from(buf).toString("base64");
-const unb64 = (s) => new Uint8Array(Buffer.from(s, "base64"));
-async function deriveKey(pass, salt, iter) {
-  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass.normalize("NFC")), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey({ name: "PBKDF2", salt: unb64(salt), iterations: iter, hash: "SHA-256" }, base,
-    { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
-}
-async function seal(key, obj) {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
-  return { iv: b64(iv), ct: b64(ct) };
-}
-async function unseal(key, c) {
-  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(c.iv) }, key, unb64(c.ct));
-  return JSON.parse(new TextDecoder().decode(pt));
-}
-
 /* ---------- Site ---------- */
 let cookie = "";
 async function api(path, opts = {}) {
@@ -120,14 +99,6 @@ async function api(path, opts = {}) {
   return body;
 }
 
-function askHidden(question) {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    rl._writeToOutput = (s) => { if (s.includes(question)) rl.output.write(s); };
-    rl.question(question, (a) => { rl.close(); process.stdout.write("\n"); resolve(a); });
-  });
-}
-
 const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 /* ---------- Programme ---------- */
@@ -136,14 +107,6 @@ if (!files.length) { console.error("Aucun fichier .docx dans " + dir); process.e
 
 await api("login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: env.SITE_PASSWORD }) });
 const { students = [] } = await api("students");
-const vault = await api("vault");
-if (!vault) { console.error("Crée d'abord la phrase secrète depuis le site (bouton « Déverrouiller les fiches »)."); process.exit(1); }
-
-const pass = env.FICHES_PASSPHRASE || (await askHidden("Phrase secrète des fiches : "));
-const key = await deriveKey(pass, vault.salt, vault.iter);
-const ok = await unseal(key, vault.check).then((v) => v.check === VAULT_CHECK, () => false);
-if (!ok) { console.error("Phrase secrète incorrecte."); process.exit(1); }
-
 const report = { updated: [], unchanged: [], notFound: [], ambiguous: [], unreadable: [], noPhotoRights: [], rightsMismatch: [] };
 const byStudent = new Map(); // id élève -> fichiers qui le visent
 
@@ -168,11 +131,8 @@ for (const { name, p, s } of parsed) {
     report.ambiguous.push(`${p.fields.firstName} — plusieurs fiches : ${byStudent.get(s.id).join(", ")}`);
     continue;
   }
-  let data = {};
-  if (s.secure) {
-    try { data = await unseal(key, s.secure); }
-    catch { report.unreadable.push(`${s.name} : fiche existante illisible avec cette phrase`); continue; }
-  }
+  if (s.ficheError) { report.unreadable.push(`${s.name} : fiche existante illisible sur le site (DATA_KEY ?)`); continue; }
+  const data = s.fiche || {};
   const { firstName, ...fields } = p.fields;
   const merged = { ...data, ...fields };
   const changed = JSON.stringify(merged) !== JSON.stringify(data);
@@ -183,7 +143,7 @@ for (const { name, p, s } of parsed) {
   if (!changed && !setRights) { report.unchanged.push(s.name); continue; }
   if (APPLY) {
     const body = {};
-    if (changed) body.secure = await seal(key, merged);
+    if (changed) body.fiche = merged;
     if (setRights) body.noPhotoRights = true;
     await api("students/" + s.id, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   }

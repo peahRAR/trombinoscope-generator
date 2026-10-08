@@ -19,11 +19,43 @@ async function loadIndex() {
 }
 const saveIndex = (idx) => meta().setJSON("index", idx);
 
-// Fiches détaillées : chiffrées dans le navigateur (AES-GCM), le serveur ne voit que du chiffré.
-const B64 = /^[A-Za-z0-9+/]+={0,2}$/;
-const isCipher = (c) =>
-  c && typeof c === "object" && typeof c.iv === "string" && typeof c.ct === "string" &&
-  c.iv.length <= 32 && c.ct.length <= 20000 && B64.test(c.iv) && B64.test(c.ct);
+// Fiches détaillées : chiffrées au repos (AES-256-GCM) avec DATA_KEY, déchiffrées pour les personnes connectées.
+const FICHE_FIELDS = ["lastName", "birthDate", "birthPlace", "address", "postcode", "city", "phone", "email",
+  "emergencyContact", "emergencyPhone", "emergencyEmail", "health"];
+
+function dataKey() {
+  const k = process.env.DATA_KEY || "";
+  if (k.length < 16) throw new Error("DATA_KEY manquant ou trop court (16 caractères minimum) dans les variables Netlify.");
+  return crypto.createHash("sha256").update("trombi-data:" + k).digest();
+}
+function encryptFiche(obj) {
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv("aes-256-gcm", dataKey(), iv);
+  const ct = Buffer.concat([c.update(JSON.stringify(obj), "utf8"), c.final()]);
+  return { iv: iv.toString("base64"), ct: ct.toString("base64"), tag: c.getAuthTag().toString("base64") };
+}
+function decryptFiche(e) {
+  const d = crypto.createDecipheriv("aes-256-gcm", dataKey(), Buffer.from(e.iv, "base64"));
+  d.setAuthTag(Buffer.from(e.tag, "base64"));
+  return JSON.parse(Buffer.concat([d.update(Buffer.from(e.ct, "base64")), d.final()]).toString("utf8"));
+}
+// Garde uniquement les champs connus, en texte court ; null si la fiche est vide
+function cleanFiche(f) {
+  if (!f || typeof f !== "object") return null;
+  const out = {};
+  for (const k of FICHE_FIELDS) {
+    const v = String(f[k] ?? "").trim().slice(0, k === "health" ? 1000 : 200);
+    if (v) out[k] = v;
+  }
+  return Object.keys(out).length ? out : null;
+}
+// Version envoyée au navigateur : fiche en clair, jamais le chiffré.
+// Si DATA_KEY manque ou a changé, le trombinoscope reste visible et la fiche est signalée illisible.
+function publicStudent({ ficheEnc, secure, ...s }) {
+  if (!ficheEnc) return s;
+  try { return { ...s, fiche: decryptFiche(ficheEnc) }; }
+  catch (e) { console.error("Fiche illisible", s.id, e.message); return { ...s, ficheError: true }; }
+}
 
 export default async (req) => {
   const url = new URL(req.url);
@@ -47,23 +79,10 @@ export default async (req) => {
     // --- Tout le reste exige d'être connecté ---
     if (!isLoggedIn(req)) return json({ error: "Non connecté" }, 401);
 
-    // Coffre des fiches détaillées : sel + valeur témoin pour vérifier la phrase secrète
-    if (path === "vault" && method === "GET") {
-      return json((await meta().get("vault", { type: "json" })) || null);
-    }
-    if (path === "vault" && method === "PUT") {
-      if (await meta().get("vault")) return json({ error: "La phrase secrète existe déjà" }, 409);
-      const v = await req.json().catch(() => ({}));
-      if (typeof v.salt !== "string" || !B64.test(v.salt) || !Number.isInteger(v.iter) || v.iter < 100000 || !isCipher(v.check))
-        return json({ error: "Données invalides" }, 400);
-      const vault = { salt: v.salt, iter: v.iter, check: { iv: v.check.iv, ct: v.check.ct } };
-      await meta().setJSON("vault", vault);
-      return json(vault, 201);
-    }
-
     // Liste des élèves
     if (path === "students" && method === "GET") {
-      return json(await loadIndex());
+      const idx = await loadIndex();
+      return json({ students: idx.students.map(publicStudent) });
     }
 
     // Ajout d'un élève : formulaire avec name, className, photo, noPhotoRights, whatsapp
@@ -101,13 +120,14 @@ export default async (req) => {
       if (body.className !== undefined && clean(body.className, 40)) s.className = clean(body.className, 40);
       if (typeof body.noPhotoRights === "boolean") s.noPhotoRights = body.noPhotoRights;
       if (typeof body.whatsapp === "boolean") s.whatsapp = body.whatsapp;
-      if (body.secure === null) delete s.secure;
-      else if (body.secure !== undefined) {
-        if (!isCipher(body.secure)) return json({ error: "Fiche chiffrée invalide" }, 400);
-        s.secure = { iv: body.secure.iv, ct: body.secure.ct };
+      if (body.fiche !== undefined) {
+        if (s.ficheEnc) decryptFiche(s.ficheEnc); // refuse d'écraser une fiche illisible (DATA_KEY absente ou changée)
+        const f = cleanFiche(body.fiche);
+        if (f) s.ficheEnc = encryptFiche(f); else delete s.ficheEnc;
+        delete s.secure; // ancien format chiffré dans le navigateur, abandonné
       }
       await saveIndex(idx);
-      return json(s);
+      return json(publicStudent(s));
     }
     if (m && method === "DELETE") {
       const idx = await loadIndex();

@@ -78,14 +78,12 @@
   dialog::backdrop{background:rgb(0 0 0 / .5)}
   dialog form{padding:20px;display:flex;flex-direction:column;gap:12px}
   #dlg{max-height:calc(100vh - 32px);overflow:auto}
-  #dlg:has(#secureBox:not([hidden])){width:min(600px,calc(100% - 32px))}
-  #secureBox{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
-  #secureBox h4{margin:0;font-size:15px}
-  #secureBox h4 small{color:var(--muted);font-weight:400}
+  #dlg:has(#ficheBox:not([hidden])){width:min(600px,calc(100% - 32px))}
+  #ficheBox{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
+  #ficheBox h4{margin:0;font-size:15px}
   .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .sgrid .full{grid-column:1/-1}
   textarea{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);width:100%;min-height:60px;resize:vertical}
-  .link{border:0;background:none;color:var(--accent);text-decoration:underline;cursor:pointer;font:inherit;padding:0}
   @media (max-width:520px){.sgrid{grid-template-columns:1fr}}
   dialog h3{margin:0;font-size:17px;display:flex;justify-content:space-between}
   dialog h3 small{color:var(--muted);font-weight:400}
@@ -131,7 +129,6 @@
     <h1>Trombinoscope</h1>
     <ul class="classes" id="classes"></ul>
     <div class="spacer"></div>
-    <button class="btn" id="vaultBtn">Déverrouiller les fiches</button>
     <button class="btn" id="logoutBtn">Se déconnecter</button>
   </aside>
   <main>
@@ -162,11 +159,11 @@
     <datalist id="classList"></datalist>
     <label class="check"><input type="checkbox" id="fNoRights">Les parents refusent le droit à l'image</label>
     <label class="check"><input type="checkbox" id="fWa">Les parents ont rejoint le groupe WhatsApp</label>
-    <div id="secureBox" hidden>
-      <h4>Fiche détaillée <small>— chiffrée, visible seulement avec la phrase secrète</small></h4>
-      <div class="sgrid" id="secureFields"></div>
+    <div id="ficheBox" hidden>
+      <h4>Fiche détaillée</h4>
+      <div class="sgrid" id="ficheFields"></div>
     </div>
-    <p class="hint" id="secureLocked" hidden><span id="secureLockedMsg"></span> <button type="button" class="link" id="dlgUnlock">Déverrouiller les fiches</button></p>
+    <p class="err" id="ficheErr" hidden>Fiche détaillée illisible : vérifie la variable DATA_KEY dans Netlify.</p>
     <p class="err" id="dlgErr"></p>
     <div class="actions">
       <button type="button" class="btn danger left" id="dlgDelete" hidden>Supprimer</button>
@@ -176,19 +173,6 @@
   </form>
 </dialog>
 
-<dialog id="vaultDlg">
-  <form id="vaultForm" method="dialog">
-    <h3 id="vaultTitle">Fiches détaillées</h3>
-    <p class="hint" id="vaultHint"></p>
-    <label>Phrase secrète<input type="password" id="vPass" autocomplete="off" required></label>
-    <label id="vPass2Wrap">Confirme la phrase secrète<input type="password" id="vPass2" autocomplete="off"></label>
-    <p class="err" id="vaultErr"></p>
-    <div class="actions">
-      <button type="button" class="btn" id="vaultCancel">Annuler</button>
-      <button type="submit" class="btn primary" id="vaultOk">Déverrouiller</button>
-    </div>
-  </form>
-</dialog>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -218,12 +202,11 @@ $('loginForm').onsubmit = async e => {
   catch(err){ $('loginErr').textContent = err.message; }
   $('loginBtn').disabled = false;
 };
-$('logoutBtn').onclick = async () => { $('pwd').value = ''; lockVault(); await api('logout', { method:'POST' }).catch(()=>{}); students = []; render(); showLogin(); };
+$('logoutBtn').onclick = async () => { $('pwd').value = ''; await api('logout', { method:'POST' }).catch(()=>{}); students = []; render(); showLogin(); };
 
 async function start(){
   const d = await api('students');
   students = d.students || [];
-  vault = await api('vault');
   $('login').hidden = true; $('app').hidden = false;
   render();
 }
@@ -300,9 +283,7 @@ function resize(file){
   });
 }
 
-/* ---------- Fiches détaillées chiffrées ----------
-   La clé est dérivée de la phrase secrète dans le navigateur (PBKDF2 → AES-GCM 256)
-   et ne quitte jamais la page : le serveur ne stocke que du chiffré. */
+/* ---------- Fiche détaillée (chiffrée côté serveur, en clair pour les personnes connectées) ---------- */
 const FIELDS = [
   ['lastName','Nom'], ['birthDate','Date de naissance'], ['birthPlace','Lieu de naissance'],
   ['address','Adresse','full'], ['postcode','Code postal'], ['city','Ville'],
@@ -310,103 +291,24 @@ const FIELDS = [
   ['emergencyContact','Personne à prévenir','full'], ['emergencyPhone',"Téléphone d'urgence"], ['emergencyEmail',"E-mail d'urgence"],
   ['health','Santé / allergies','full','area'],
 ];
-const VAULT_CHECK = 'trombi-fiches-v1', AUTO_LOCK_MS = 30 * 60 * 1000;
-let vault = null, dataKey = null, lockTimer = null, editing = null, secureState = null;
-
-const b64 = buf => { let s = ''; new Uint8Array(buf).forEach(c => s += String.fromCharCode(c)); return btoa(s); };
-const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-async function deriveKey(pass, salt, iter){
-  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass.normalize('NFC')), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey({ name:'PBKDF2', salt: unb64(salt), iterations: iter, hash:'SHA-256' }, base,
-                                 { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
-}
-async function seal(key, obj){
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
-  return { iv: b64(iv), ct: b64(ct) };
-}
-async function unseal(key, c){
-  const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv: unb64(c.iv) }, key, unb64(c.ct));
-  return JSON.parse(new TextDecoder().decode(pt));
-}
-
-function updVaultBtn(){ $('vaultBtn').textContent = dataKey ? 'Verrouiller les fiches' : 'Déverrouiller les fiches'; }
-function lockVault(){ dataKey = null; clearTimeout(lockTimer); updVaultBtn(); }
-function setKey(k){ dataKey = k; clearTimeout(lockTimer); lockTimer = setTimeout(lockVault, AUTO_LOCK_MS); updVaultBtn(); }
-$('vaultBtn').onclick = () => dataKey ? lockVault() : askVault();
-
-let vaultResolve = null;
-function askVault(){
-  const create = !vault;
-  $('vaultTitle').textContent = create ? 'Créer la phrase secrète' : 'Déverrouiller les fiches';
-  $('vaultHint').textContent = create
-    ? "Elle chiffre les fiches détaillées (téléphones, santé…). Au moins 12 caractères. Garde-la dans un gestionnaire de mots de passe : si elle est perdue, les fiches sont perdues aussi."
-    : 'Entre la phrase secrète pour voir et modifier les fiches détaillées.';
-  $('vPass2Wrap').hidden = !create; $('vPass').value = $('vPass2').value = '';
-  $('vaultErr').textContent = ''; $('vaultOk').disabled = false;
-  $('vaultOk').textContent = create ? 'Créer' : 'Déverrouiller';
-  $('vaultDlg').showModal(); $('vPass').focus();
-  return new Promise(r => vaultResolve = r);
-}
-function closeVault(ok){ const r = vaultResolve; vaultResolve = null; $('vPass').value = $('vPass2').value = ''; $('vaultDlg').close(); r && r(ok); }
-$('vaultCancel').onclick = () => closeVault(false);
-$('vaultDlg').addEventListener('cancel', e => { e.preventDefault(); closeVault(false); });
-$('vaultForm').onsubmit = async e => {
-  e.preventDefault();
-  const pass = $('vPass').value;
-  $('vaultErr').textContent = ''; $('vaultOk').disabled = true;
-  try {
-    if (!vault) {
-      if (pass.length < 12) throw new Error('Au moins 12 caractères.');
-      if (pass !== $('vPass2').value) throw new Error('Les deux phrases ne sont pas identiques.');
-      const salt = b64(crypto.getRandomValues(new Uint8Array(16))), iter = 600000;
-      const key = await deriveKey(pass, salt, iter);
-      vault = await api('vault', { method:'PUT', headers:{'content-type':'application/json'},
-                                   body: JSON.stringify({ salt, iter, check: await seal(key, { check: VAULT_CHECK }) }) });
-      setKey(key);
-    } else {
-      const key = await deriveKey(pass, vault.salt, vault.iter);
-      const ok = await unseal(key, vault.check).then(v => v.check === VAULT_CHECK, () => false);
-      if (!ok) throw new Error('Phrase secrète incorrecte.');
-      setKey(key);
-    }
-    closeVault(true);
-  } catch(err){ $('vaultErr').textContent = err.message; $('vaultOk').disabled = false; }
-};
-
-// Champs de la fiche dans la fenêtre « Modifier »
-$('secureFields').innerHTML = FIELDS.map(([k, label, full, area]) =>
+$('ficheFields').innerHTML = FIELDS.map(([k, label, full, area]) =>
   `<label class="${full ? 'full' : ''}">${label}${area ? `<textarea id="s_${k}" maxlength="1000"></textarea>` : `<input type="text" id="s_${k}" maxlength="200" autocomplete="off">`}</label>`).join('');
 
-async function fillSecure(s){
-  secureState = null; $('secureBox').hidden = $('secureLocked').hidden = true;
-  if (!s) return;
-  const lockedMsg = msg => { $('secureLockedMsg').textContent = msg; $('secureLocked').hidden = false; };
-  if (!dataKey) return lockedMsg(s.secure ? '🔒 Fiche détaillée chiffrée.' : 'Pas encore de fiche détaillée.');
-  let data = {};
-  if (s.secure) {
-    try { data = await unseal(dataKey, s.secure); }
-    catch(e){ return lockedMsg('Fiche illisible avec cette phrase secrète.'); }
-  }
-  if (editing !== s) return;
-  FIELDS.forEach(([k]) => $('s_' + k).value = data[k] || '');
-  secureState = { key: dataKey, data };
-  $('secureBox').hidden = false;
+// Fiche affichée seulement dans « Modifier » (pas à l'ajout d'une photo)
+function fillFiche(s){
+  $('ficheBox').hidden = !s || !!s.ficheError; $('ficheErr').hidden = !s?.ficheError;
+  if (s) FIELDS.forEach(([k]) => $('s_' + k).value = s.fiche?.[k] || '');
 }
-$('dlgUnlock').onclick = async () => { if (await askVault()) fillSecure(editing); };
-
-// Renvoie la fiche chiffrée à enregistrer, null pour l'effacer, undefined pour ne pas y toucher
-async function readSecure(){
-  if (!secureState) return undefined;
-  const obj = { ...secureState.data };
-  FIELDS.forEach(([k]) => { const v = $('s_' + k).value.trim(); if (v) obj[k] = v; else delete obj[k]; });
-  return Object.keys(obj).length ? seal(secureState.key, obj) : null;
+// Renvoie la fiche à enregistrer, ou undefined si la fenêtre n'en affiche pas
+function readFiche(){
+  if ($('ficheBox').hidden) return undefined;
+  return Object.fromEntries(FIELDS.map(([k]) => [k, $('s_' + k).value.trim()]));
 }
 
 /* ---------- Fenêtre prénom / classe ---------- */
 let dlgResolve = null;
 function askDialog({ title, count, imgSrc, name = '', className = '', noPhotoRights = false, whatsapp = false, canDelete = false, skipLabel = 'Annuler', student = null }){
-  editing = student; fillSecure(student);
+  fillFiche(student);
   $('dlgTitle').textContent = title; $('dlgCount').textContent = count || '';
   $('dlgImg').src = imgSrc; $('fName').value = name; $('fClass').value = className;
   $('fNoRights').checked = noPhotoRights; $('fWa').checked = whatsapp;
@@ -432,8 +334,7 @@ $('dlgForm').onsubmit = async e => {
   if (!name || !className) { $('dlgErr').textContent = 'Le prénom et la classe sont obligatoires.'; return; }
   $('dlgOk').disabled = true;
   const noPhotoRights = $('fNoRights').checked, whatsapp = $('fWa').checked;
-  try { const secure = await readSecure();
-        await onSave({ name, className, noPhotoRights, whatsapp, secure }); closeDlg({ action:'saved', className }); }
+  try { await onSave({ name, className, noPhotoRights, whatsapp, fiche: readFiche() }); closeDlg({ action:'saved', className }); }
   catch(err){ $('dlgErr').textContent = err.message; $('dlgOk').disabled = false; }
 };
 
@@ -460,10 +361,9 @@ async function addFiles(files){
 }
 
 async function editStudent(s){
-  onSave = async ({ name, className, noPhotoRights, whatsapp, secure }) => {
-    const u = await api('students/' + s.id, { method:'PATCH', headers:{'content-type':'application/json'}, body: JSON.stringify({ name, className, noPhotoRights, whatsapp, secure }) });
-    if (secure === null) delete s.secure;
-    Object.assign(s, u); render();
+  onSave = async ({ name, className, noPhotoRights, whatsapp, fiche }) => {
+    const u = await api('students/' + s.id, { method:'PATCH', headers:{'content-type':'application/json'}, body: JSON.stringify({ name, className, noPhotoRights, whatsapp, fiche }) });
+    delete s.fiche; Object.assign(s, u); render();
   };
   const r = await askDialog({ title:'Modifier', imgSrc:'/api/photo/' + s.id, name:s.name, className:s.className,
                                noPhotoRights: !!s.noPhotoRights, whatsapp: !!s.whatsapp, canDelete:true, student:s });
