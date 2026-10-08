@@ -21,7 +21,7 @@ const saveIndex = (idx) => meta().setJSON("index", idx);
 
 // Fiches détaillées : chiffrées au repos (AES-256-GCM) avec DATA_KEY, déchiffrées pour les personnes connectées.
 const FICHE_FIELDS = ["lastName", "birthDate", "birthPlace", "address", "postcode", "city", "phone", "email",
-  "emergencyContact", "emergencyPhone", "emergencyEmail", "health"];
+  "emergencyContact", "emergencyPhone", "emergencyEmail", "license", "health"];
 
 function dataKey() {
   const k = process.env.DATA_KEY || "";

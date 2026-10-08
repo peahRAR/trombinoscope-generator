@@ -8,7 +8,7 @@
 //   SITE_PASSWORD=le code d'accès du site
 //
 // Le script n'affiche aucune donnée personnelle hormis le prénom et le nom du fichier.
-// Il ne crée pas d'élève : il complète ceux déjà présents, reconnus par leur prénom.
+// Il ne crée pas d'élève : il complète ceux déjà présents, reconnus par leur prénom et l'initiale du nom.
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -99,7 +99,15 @@ async function api(path, opts = {}) {
   return body;
 }
 
-const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+// Sur le site, un élève s'appelle « Prénom » ou « Prénom X. » (X = initiale du nom).
+function matchesStudent(s, firstName, lastName) {
+  const m = s.name.trim().match(/^(.*?)\s+(\p{L})\.?$/u);
+  const first = m ? m[1] : s.name, initial = m ? norm(m[2]) : "";
+  if (norm(first) !== norm(firstName)) return false;
+  return !initial || !lastName || norm(lastName).startsWith(initial);
+}
 
 /* ---------- Programme ---------- */
 const files = readdirSync(dir).filter((f) => /\.docx$/i.test(f) && !f.startsWith("~$")).map((f) => join(dir, f));
@@ -116,7 +124,7 @@ for (const file of files) {
   let p;
   try { p = parseDocx(file); } catch { report.unreadable.push(name); continue; }
   if (!p.fields.firstName) { report.unreadable.push(name + " (prénom introuvable)"); continue; }
-  const matches = students.filter((s) => norm(s.name) === norm(p.fields.firstName));
+  const matches = students.filter((s) => matchesStudent(s, p.fields.firstName, p.fields.lastName));
   if (!matches.length) { report.notFound.push(`${p.fields.firstName} — ${name}`); continue; }
   if (matches.length > 1) {
     report.ambiguous.push(`${p.fields.firstName} — ${name} (${matches.map((s) => s.className).join(", ")})`);
