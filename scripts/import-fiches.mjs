@@ -102,11 +102,14 @@ async function api(path, opts = {}) {
 const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 // Sur le site, un élève s'appelle « Prénom » ou « Prénom X. » (X = initiale du nom).
+// Le nom de famille déjà enregistré dans sa fiche, s'il existe, départage les homonymes.
 function matchesStudent(s, firstName, lastName) {
   const m = s.name.trim().match(/^(.*?)\s+(\p{L})\.?$/u);
   const first = m ? m[1] : s.name, initial = m ? norm(m[2]) : "";
   if (norm(first) !== norm(firstName)) return false;
-  return !initial || !lastName || norm(lastName).startsWith(initial);
+  if (!lastName) return true;
+  if (s.fiche?.lastName) return norm(s.fiche.lastName) === norm(lastName);
+  return !initial || norm(lastName).startsWith(initial);
 }
 
 /* ---------- Programme ---------- */

@@ -64,12 +64,21 @@ export default async (req) => {
 
   try {
     // --- Connexion ---
+    // Le site envoie un vrai formulaire (puis redirige) pour que le navigateur propose d'enregistrer le code ;
+    // le script d'import envoie du JSON.
     if (path === "login" && method === "POST") {
-      const { password } = await req.json().catch(() => ({}));
-      if (!checkPassword(password)) {
-        await new Promise((r) => setTimeout(r, 1500)); // ralentit les essais au hasard
-        return json({ error: "Code incorrect" }, 401);
+      const isForm = /form/.test(req.headers.get("content-type") || "");
+      const password = isForm
+        ? (await req.formData().catch(() => null))?.get("password")
+        : (await req.json().catch(() => ({}))).password;
+      const ok = checkPassword(password);
+      if (!ok) await new Promise((r) => setTimeout(r, 1500)); // ralentit les essais au hasard
+      if (isForm) {
+        const headers = { location: ok ? "/" : "/?erreur=1", "cache-control": "no-store" };
+        if (ok) headers["set-cookie"] = sessionCookie();
+        return new Response(null, { status: 303, headers });
       }
+      if (!ok) return json({ error: "Code incorrect" }, 401);
       return json({ ok: true }, 200, { "set-cookie": sessionCookie() });
     }
     if (path === "logout" && method === "POST") {
