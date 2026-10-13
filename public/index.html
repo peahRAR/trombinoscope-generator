@@ -8,11 +8,11 @@
 <style>
   :root{
     --bg:#f6f7f4; --panel:#fff; --fg:#1d2420; --muted:#66706a;
-    --line:#dde2dc; --accent:#2f6b4f; --accent-fg:#fff; --danger:#b23a2e;
+    --line:#dde2dc; --accent:#2f6b4f; --accent-fg:#fff; --danger:#b23a2e; --warn:#b7791f;
     --font:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
   }
   @media (prefers-color-scheme: dark){
-    :root{--bg:#151a17;--panel:#1e2420;--fg:#e8ece9;--muted:#9aa49e;--line:#323a35;--accent:#6fbf95;--accent-fg:#0f1712;--danger:#ef7d70;color-scheme:dark}
+    :root{--bg:#151a17;--panel:#1e2420;--fg:#e8ece9;--muted:#9aa49e;--line:#323a35;--accent:#6fbf95;--accent-fg:#0f1712;--danger:#ef7d70;--warn:#e0b25c;color-scheme:dark}
   }
   *{box-sizing:border-box}
   [hidden]{display:none!important}
@@ -24,16 +24,20 @@
   .btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
   .btn.danger{color:var(--danger)}
   .btn.danger.sure{background:var(--danger);color:#fff;border-color:var(--danger)}
+  .btn.small{padding:5px 10px;font-size:13px}
   .btn:disabled{opacity:.5;cursor:wait}
+  .link{border:0;background:none;color:var(--accent);text-decoration:underline;cursor:pointer;font:inherit;font-size:13px;padding:0}
   :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .hint{font-size:12px;color:var(--muted);margin:0}
   .err{color:var(--danger);font-size:13px;min-height:1.2em;margin:0}
+  .ok{color:var(--accent);font-size:13px;margin:0}
 
-  /* Connexion */
+  /* Connexion / inscription */
   #login{min-height:100vh;display:grid;place-items:center;padding:16px}
-  #login form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:28px;width:min(340px,100%);display:flex;flex-direction:column;gap:14px}
+  #login form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:28px;width:min(360px,100%);display:flex;flex-direction:column;gap:14px}
   #login h1{margin:0;font-size:22px}
-  /* Identifiant invisible mais présent, pour que les gestionnaires de mots de passe associent le code au site */
+  .links{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  /* Identifiant invisible mais présent, pour que le gestionnaire de mots de passe sache à quel compte associer le mot de passe */
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);border:0;opacity:0}
   .field{display:flex;flex-direction:column;gap:4px}
   .pwd-wrap{position:relative;display:block}
@@ -46,12 +50,17 @@
   .app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
   aside{background:var(--panel);border-right:1px solid var(--line);padding:20px 16px;display:flex;flex-direction:column;gap:10px}
   aside h1{font-size:18px;margin:0 0 6px}
+  aside .btn{white-space:normal}
   .classes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
   .classes button{width:100%;text-align:left;border:0;background:none;color:var(--fg);padding:8px 10px;border-radius:6px;cursor:pointer;font:inherit;display:flex;justify-content:space-between;gap:8px}
   .classes button:hover{background:var(--bg)}
   .classes button.on{background:var(--accent);color:var(--accent-fg)}
   .classes small{opacity:.7;font-variant-numeric:tabular-nums}
+  .classes .sep{border-top:1px solid var(--line);margin:8px 0 4px}
+  .count{background:var(--warn);color:#fff;border-radius:10px;padding:0 7px;font-size:12px;font-weight:600;opacity:1!important}
   .spacer{flex:1}
+  .me{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
+  .me strong{display:block;color:var(--fg);font-size:14px;overflow-wrap:anywhere}
   main{padding:20px 24px;min-width:0}
   .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px}
   .toolbar h2{margin:0;font-size:22px;flex:1;min-width:150px}
@@ -59,8 +68,9 @@
   .drop{border:2px dashed var(--line);border-radius:10px;padding:18px;text-align:center;color:var(--muted);margin-bottom:18px;cursor:pointer}
   .drop.over{border-color:var(--accent);color:var(--accent)}
   .grid{display:grid;grid-template-columns:repeat(var(--cols,6),1fr);gap:14px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;cursor:pointer;text-align:center;font:inherit;color:var(--fg)}
-  .card:hover{border-color:var(--accent)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;text-align:center;font:inherit;color:var(--fg)}
+  button.card{cursor:pointer}
+  button.card:hover{border-color:var(--accent)}
   .card img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:4px;background:var(--bg);display:block}
   .card span{font-weight:600}
   .ph{position:relative;display:block}
@@ -75,7 +85,23 @@
   .empty{color:var(--muted);padding:40px 0;text-align:center;grid-column:1/-1}
   .print-title{display:none}
 
-  /* Fenêtre prénom / classe */
+  /* Comptes et journal (super admin) */
+  .section{margin-bottom:28px}
+  .section h3{font-size:16px;margin:0 0 10px}
+  .rows{display:flex;flex-direction:column;gap:8px}
+  .row{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+  .row.todo{border-color:var(--warn)}
+  .row .who{flex:1;min-width:200px}
+  .row .who strong{display:block}
+  .row .who small{color:var(--muted);overflow-wrap:anywhere}
+  .row select{width:auto}
+  .row .acts{display:flex;gap:6px;flex-wrap:wrap}
+  .journal{width:100%;border-collapse:collapse;font-size:14px}
+  .journal td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  .journal td:first-child{white-space:nowrap;color:var(--muted);font-variant-numeric:tabular-nums}
+  .journal td:nth-child(2){color:var(--muted);overflow-wrap:anywhere}
+
+  /* Fenêtres */
   dialog{border:0;border-radius:12px;padding:0;background:var(--panel);color:var(--fg);width:min(380px,calc(100% - 32px))}
   dialog::backdrop{background:rgb(0 0 0 / .5)}
   dialog form{padding:20px;display:flex;flex-direction:column;gap:12px}
@@ -90,6 +116,7 @@
   dialog h3{margin:0;font-size:17px;display:flex;justify-content:space-between}
   dialog h3 small{color:var(--muted);font-weight:400}
   dialog img{width:150px;aspect-ratio:3/4;object-fit:cover;border-radius:6px;align-self:center;background:var(--bg)}
+  .temp{font:600 20px/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.04em;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;text-align:center;user-select:all}
   .actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
   .actions .left{margin-right:auto}
 
@@ -109,20 +136,44 @@
 <body>
 
 <div id="login" hidden>
+  <!-- Envoi classique du formulaire (le serveur redirige) : c'est ce qui permet au navigateur de retenir le mot de passe -->
   <form id="loginForm" method="post" action="/api/login">
     <h1>Trombinoscope</h1>
-    <p class="hint">Accès réservé. Entre le code pour voir les photos.</p>
-    <input type="text" name="username" class="sr-only" autocomplete="username" value="Trombinoscope" readonly aria-hidden="true" tabindex="-1">
-    <div class="field"><label for="pwd">Code d'accès</label>
-    <span class="pwd-wrap">
-      <input type="password" id="pwd" name="password" autocomplete="current-password" required autofocus>
-      <button type="button" class="eye" id="eyeBtn" aria-label="Afficher le code" aria-pressed="false">
-        <svg id="eyeOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
-        <svg id="eyeOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.7 8.5 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.8-1.3"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
-      </button>
-    </span></div>
+    <p class="hint">Accès réservé aux encadrants du club.</p>
+    <label>E-mail<input type="email" id="lEmail" name="email" autocomplete="username" required autofocus></label>
+    <div class="field"><label for="lPwd">Mot de passe</label>
+      <span class="pwd-wrap"><input type="password" id="lPwd" name="password" autocomplete="current-password" required></span></div>
     <p class="err" id="loginErr"></p>
-    <button class="btn primary" id="loginBtn">Entrer</button>
+    <button class="btn primary" id="loginBtn">Se connecter</button>
+    <div class="links">
+      <button type="button" class="link" data-show="forgotForm">Mot de passe oublié ?</button>
+      <button type="button" class="link" data-show="registerForm">Créer un compte</button>
+    </div>
+  </form>
+
+  <form id="registerForm" hidden>
+    <h1>Créer un compte</h1>
+    <p class="hint">Ta demande sera validée par le super admin, qui choisira tes droits.</p>
+    <label>Nom et prénom<input type="text" id="rName" maxlength="60" autocomplete="name" required></label>
+    <label>E-mail<input type="email" id="rEmail" autocomplete="username" required></label>
+    <div class="field"><label for="rPwd">Mot de passe (10 caractères minimum)</label>
+      <span class="pwd-wrap"><input type="password" id="rPwd" autocomplete="new-password" minlength="10" required></span></div>
+    <label>Confirme le mot de passe<input type="password" id="rPwd2" autocomplete="new-password" minlength="10" required></label>
+    <label id="rSetupWrap" hidden>Code de mise en route (l'ancien code du site)<input type="password" id="rSetup" autocomplete="off"></label>
+    <p class="err" id="registerErr"></p>
+    <p class="ok" id="registerOk" hidden></p>
+    <button class="btn primary" id="registerBtn">Envoyer la demande</button>
+    <div class="links"><button type="button" class="link" data-show="loginForm">J'ai déjà un compte</button></div>
+  </form>
+
+  <form id="forgotForm" hidden>
+    <h1>Mot de passe oublié</h1>
+    <p class="hint">Le super admin sera prévenu et te donnera un mot de passe temporaire, à changer à ta connexion.</p>
+    <label>E-mail du compte<input type="email" id="fEmail" autocomplete="username" required></label>
+    <p class="err" id="forgotErr"></p>
+    <p class="ok" id="forgotOk" hidden></p>
+    <button class="btn primary" id="forgotBtn">Prévenir le super admin</button>
+    <div class="links"><button type="button" class="link" data-show="loginForm">Retour à la connexion</button></div>
   </form>
 </div>
 
@@ -130,25 +181,44 @@
   <aside>
     <h1>Trombinoscope</h1>
     <ul class="classes" id="classes"></ul>
+    <ul class="classes" id="adminNav" hidden>
+      <li class="sep"></li>
+      <li><button id="navAccounts"><span>Comptes</span><small class="count" id="todoCount" hidden></small></button></li>
+      <li><button id="navJournal"><span>Journal</span></button></li>
+    </ul>
     <div class="spacer"></div>
+    <div class="me"><strong id="meName"></strong><span id="meRole"></span></div>
+    <button class="btn" id="pwBtn">Changer mon mot de passe</button>
     <button class="btn" id="logoutBtn">Se déconnecter</button>
   </aside>
   <main>
-    <div class="toolbar">
-      <h2 id="title">Toutes les classes</h2>
-      <select id="cols" aria-label="Photos par ligne"><option value="4">4 par ligne</option><option value="5">5 par ligne</option><option value="6" selected>6 par ligne</option><option value="7">7 par ligne</option><option value="8">8 par ligne</option></select>
-      <select id="orient" aria-label="Orientation d'impression"><option value="portrait">Portrait</option><option value="landscape">Paysage</option></select>
-      <label class="check" title="Afficher l'icône sur les photos"><input type="checkbox" id="showCam" checked>Droit à l'image</label>
-      <label class="check" title="Afficher l'icône sur les photos"><input type="checkbox" id="showWa" checked>WhatsApp</label>
-      <button class="btn primary" id="printBtn">Imprimer / PDF</button>
-    </div>
-    <div class="drop" id="drop">
-      <strong>+ Ajouter des photos</strong> : clique ici ou glisse les photos (plusieurs à la fois).<br>
-      <span class="hint">Pour chaque photo, on te demandera le prénom et la classe.</span>
-    </div>
-    <input type="file" id="files" accept="image/*" multiple hidden>
-    <h1 class="print-title" id="printTitle"></h1>
-    <div class="grid" id="grid"></div>
+    <section id="viewGrid">
+      <div class="toolbar">
+        <h2 id="title">Toutes les classes</h2>
+        <select id="cols" aria-label="Photos par ligne"><option value="4">4 par ligne</option><option value="5">5 par ligne</option><option value="6" selected>6 par ligne</option><option value="7">7 par ligne</option><option value="8">8 par ligne</option></select>
+        <select id="orient" aria-label="Orientation d'impression"><option value="portrait">Portrait</option><option value="landscape">Paysage</option></select>
+        <label class="check" title="Afficher l'icône sur les photos"><input type="checkbox" id="showCam" checked>Droit à l'image</label>
+        <label class="check" title="Afficher l'icône sur les photos"><input type="checkbox" id="showWa" checked>WhatsApp</label>
+        <button class="btn primary" id="printBtn">Imprimer / PDF</button>
+      </div>
+      <div class="drop" id="drop" hidden>
+        <strong>+ Ajouter des photos</strong> : clique ici ou glisse les photos (plusieurs à la fois).<br>
+        <span class="hint">Pour chaque photo, on te demandera le prénom et la classe.</span>
+      </div>
+      <input type="file" id="files" accept="image/*" multiple hidden>
+      <h1 class="print-title" id="printTitle"></h1>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <section id="viewAccounts" hidden>
+      <div class="toolbar"><h2>Comptes</h2></div>
+      <div id="accounts"></div>
+    </section>
+
+    <section id="viewJournal" hidden>
+      <div class="toolbar"><h2>Journal</h2><span class="hint">Les 300 dernières actions</span></div>
+      <table class="journal"><tbody id="journal"></tbody></table>
+    </section>
   </main>
 </div>
 
@@ -157,7 +227,7 @@
     <h3><span id="dlgTitle">Nouvel élève</span><small id="dlgCount"></small></h3>
     <img id="dlgImg" alt="">
     <label>Prénom<input type="text" id="fName" required maxlength="60" autocomplete="off"></label>
-    <label>Classe<input type="text" id="fClass" required maxlength="40" list="classList" autocomplete="off" placeholder="ex : CM2 A"></label>
+    <label>Classe<input type="text" id="fClass" required maxlength="40" list="classList" autocomplete="off" placeholder="ex : 6-8 ans"></label>
     <datalist id="classList"></datalist>
     <label class="check"><input type="checkbox" id="fNoRights">Les parents refusent le droit à l'image</label>
     <label class="check"><input type="checkbox" id="fWa">Les parents ont rejoint le groupe WhatsApp</label>
@@ -175,49 +245,181 @@
   </form>
 </dialog>
 
+<dialog id="pwDlg">
+  <form id="pwForm" method="dialog">
+    <h3 id="pwTitle">Changer mon mot de passe</h3>
+    <p class="hint" id="pwHint"></p>
+    <input type="text" id="pwUser" class="sr-only" autocomplete="username" readonly aria-hidden="true" tabindex="-1">
+    <label id="pwCurLabel">Mot de passe actuel<input type="password" id="pwCur" autocomplete="current-password" required></label>
+    <div class="field"><label for="pwNew">Nouveau mot de passe (10 caractères minimum)</label>
+      <span class="pwd-wrap"><input type="password" id="pwNew" autocomplete="new-password" minlength="10" required></span></div>
+    <label>Confirme le nouveau mot de passe<input type="password" id="pwNew2" autocomplete="new-password" minlength="10" required></label>
+    <p class="err" id="pwErr"></p>
+    <div class="actions">
+      <button type="button" class="btn" id="pwCancel">Annuler</button>
+      <button type="submit" class="btn primary" id="pwOk">Enregistrer</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="tempDlg">
+  <form method="dialog">
+    <h3>Mot de passe temporaire</h3>
+    <p class="hint" id="tempFor"></p>
+    <div class="temp" id="tempPwd"></div>
+    <p class="hint">Transmets-le de vive voix ou par message privé. Il ne sera plus affiché ensuite ; la personne devra le changer à sa connexion.</p>
+    <div class="actions">
+      <button type="button" class="btn" id="tempCopy">Copier</button>
+      <button class="btn primary">Fermer</button>
+    </div>
+  </form>
+</dialog>
 
 <script>
 const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let students = [];
+let me = null;                // compte connecté : { name, email, role, … }
 let current = null;           // classe affichée (null = toutes)
+let view = 'grid';            // grid | accounts | journal
 const ALL = null;
+const ROLE_LABEL = { superadmin:'Super admin', editor:'Éditeur', reader:'Lecteur' };
+const canEdit = () => me && (me.role === 'editor' || me.role === 'superadmin');
 
 async function api(path, opts = {}) {
   const r = await fetch('/api/' + path, { credentials: 'same-origin', ...opts });
-  if (r.status === 401 && path !== 'login') { showLogin(); throw new Error('Non connecté'); }
   const body = await r.json().catch(() => ({}));
+  if (r.status === 401) { showLogin(); throw new Error(body.error || 'Non connecté'); }
+  if (r.status === 403 && body.mustChangePassword) { askPassword(true); throw new Error(body.error); }
   if (!r.ok) throw new Error(body.error || 'Erreur');
   return body;
 }
+const postJSON = (path, data, method = 'POST') =>
+  api(path, { method, headers:{'content-type':'application/json'}, body: JSON.stringify(data) });
 
-/* ---------- Connexion ---------- */
-function setPwdVisible(v){ $('pwd').type = v ? 'text' : 'password'; $('eyeOn').hidden = v; $('eyeOff').hidden = !v;
-  $('eyeBtn').setAttribute('aria-pressed', v); $('eyeBtn').setAttribute('aria-label', v ? 'Masquer le code' : 'Afficher le code'); }
-$('eyeBtn').onclick = () => { setPwdVisible($('pwd').type === 'password'); $('pwd').focus(); };
-function showLogin(){ setPwdVisible(false); $('app').hidden = true; $('login').hidden = false; $('pwd').focus(); }
-// Envoi classique du formulaire (le serveur redirige vers la page) : c'est ce qui permet
-// au navigateur de proposer d'enregistrer le code.
-$('loginForm').onsubmit = () => { setPwdVisible(false); $('loginErr').textContent = ''; setTimeout(() => $('loginBtn').disabled = true); };
-if (new URLSearchParams(location.search).has('erreur')) {
-  $('loginErr').textContent = 'Code incorrect';
-  history.replaceState(null, '', location.pathname);
+/* ---------- Œil pour afficher le mot de passe ---------- */
+const EYE = '<svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'
+  + '<svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.7 8.5 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.8-1.3"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+function setPwdVisible(input, v){
+  const b = input.nextElementSibling; input.type = v ? 'text' : 'password';
+  b.querySelector('.on').hidden = v; b.querySelector('.off').hidden = !v;
+  b.setAttribute('aria-pressed', v); b.setAttribute('aria-label', v ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
 }
-$('logoutBtn').onclick = async () => { $('pwd').value = ''; await api('logout', { method:'POST' }).catch(()=>{}); students = []; render(); showLogin(); };
+document.querySelectorAll('.pwd-wrap').forEach(w => {
+  const input = w.querySelector('input'), b = document.createElement('button');
+  b.type = 'button'; b.className = 'eye'; b.innerHTML = EYE; w.append(b); setPwdVisible(input, false);
+  b.onclick = () => { setPwdVisible(input, input.type === 'password'); input.focus(); };
+});
+const hideAllPwd = () => document.querySelectorAll('.pwd-wrap input').forEach(i => setPwdVisible(i, false));
 
+/* ---------- Connexion, inscription, mot de passe oublié ---------- */
+function showPanel(id){
+  ['loginForm','registerForm','forgotForm'].forEach(f => $(f).hidden = f !== id);
+  const first = $(id).querySelector('input:not(.sr-only)'); first && first.focus();
+}
+document.querySelectorAll('[data-show]').forEach(b => b.onclick = () => {
+  if (b.dataset.show === 'forgotForm') $('fEmail').value = $('lEmail').value;
+  showPanel(b.dataset.show);
+});
+function showLogin(){
+  hideAllPwd(); me = null; students = [];
+  $('app').hidden = true; $('login').hidden = false; showPanel('loginForm');
+}
+$('loginForm').onsubmit = () => { hideAllPwd(); $('loginErr').textContent = ''; setTimeout(() => $('loginBtn').disabled = true); };
+const LOGIN_ERRORS = {
+  identifiants: 'E-mail ou mot de passe incorrect.',
+  attente: 'Ton compte attend la validation du super admin.',
+  revoque: 'Ce compte a été désactivé.',
+  bloque: "Trop d'essais : réessaie dans 15 minutes.",
+};
+{
+  const e = new URLSearchParams(location.search).get('erreur');
+  if (e) { $('loginErr').textContent = LOGIN_ERRORS[e] || 'Connexion impossible.'; history.replaceState(null, '', location.pathname); }
+}
+
+$('registerForm').onsubmit = async e => {
+  e.preventDefault(); hideAllPwd();
+  $('registerErr').textContent = ''; $('registerOk').hidden = true;
+  if ($('rPwd').value !== $('rPwd2').value) { $('registerErr').textContent = 'Les deux mots de passe sont différents.'; return; }
+  $('registerBtn').disabled = true;
+  try {
+    const r = await fetch('/api/register', { method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ name: $('rName').value, email: $('rEmail').value, password: $('rPwd').value, setupCode: $('rSetup').value || undefined }) });
+    const body = await r.json().catch(() => ({}));
+    if (body.needSetup) $('rSetupWrap').hidden = false;
+    if (!r.ok) throw new Error(body.error || 'Erreur');
+    $('registerOk').textContent = body.message; $('registerOk').hidden = false;
+    $('lEmail').value = $('rEmail').value;
+    $('registerForm').querySelectorAll('input').forEach(i => i.value = ''); $('rSetupWrap').hidden = true;
+  } catch(err){ $('registerErr').textContent = err.message; }
+  $('registerBtn').disabled = false;
+};
+
+$('forgotForm').onsubmit = async e => {
+  e.preventDefault(); $('forgotErr').textContent = ''; $('forgotOk').hidden = true; $('forgotBtn').disabled = true;
+  try {
+    const r = await fetch('/api/forgot', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ email: $('fEmail').value }) });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.error || 'Erreur');
+    $('forgotOk').textContent = body.message; $('forgotOk').hidden = false;
+  } catch(err){ $('forgotErr').textContent = err.message; }
+  $('forgotBtn').disabled = false;
+};
+
+$('logoutBtn').onclick = async () => { await fetch('/api/logout', { method:'POST' }).catch(()=>{}); showLogin(); };
+
+/* ---------- Changement de mot de passe (forcé après un mot de passe temporaire) ---------- */
+let pwForced = false;
+function askPassword(forced){
+  pwForced = forced;
+  $('pwTitle').textContent = forced ? 'Choisis ton mot de passe' : 'Changer mon mot de passe';
+  $('pwHint').textContent = forced ? 'Tu t’es connecté avec un mot de passe temporaire : choisis-en un nouveau pour continuer.' : '';
+  $('pwCurLabel').firstChild.textContent = forced ? 'Mot de passe temporaire' : 'Mot de passe actuel';
+  $('pwUser').value = me?.email || '';
+  ['pwCur','pwNew','pwNew2'].forEach(id => $(id).value = ''); $('pwErr').textContent = '';
+  $('pwCancel').hidden = forced; $('pwOk').disabled = false; hideAllPwd();
+  if (!$('pwDlg').open) $('pwDlg').showModal();
+  $('pwCur').focus();
+}
+$('pwBtn').onclick = () => askPassword(false);
+$('pwCancel').onclick = () => $('pwDlg').close();
+$('pwDlg').addEventListener('cancel', e => { if (pwForced) e.preventDefault(); });
+$('pwForm').onsubmit = async e => {
+  e.preventDefault();
+  if ($('pwNew').value !== $('pwNew2').value) { $('pwErr').textContent = 'Les deux nouveaux mots de passe sont différents.'; return; }
+  $('pwOk').disabled = true;
+  try {
+    await postJSON('password', { currentPassword: $('pwCur').value, newPassword: $('pwNew').value });
+    $('pwDlg').close();
+    if (pwForced) await start();
+  } catch(err){ $('pwErr').textContent = err.message; $('pwOk').disabled = false; }
+};
+
+/* ---------- Démarrage ---------- */
 async function start(){
+  me = await api('me');
+  $('login').hidden = true; $('app').hidden = false;
+  $('meName').textContent = me.name || me.email; $('meRole').textContent = ROLE_LABEL[me.role] || '';
+  $('adminNav').hidden = me.role !== 'superadmin';
+  $('drop').hidden = !canEdit();
+  if (me.mustChangePassword) { students = []; render(); askPassword(true); return; }
   const d = await api('students');
   students = d.students || [];
-  $('login').hidden = true; $('app').hidden = false;
   render();
+  if (me.role === 'superadmin') loadUsers().catch(() => {});
 }
 
 /* ---------- Affichage ---------- */
-// « Jean D. » : prénom + initiale du nom de famille de la fiche (sauf si le prénom porte déjà une initiale)
-function displayName(s){
-  const initial = (s.fiche?.lastName || '').trim().charAt(0).toUpperCase();
-  return initial && !/\s\p{L}\.?$/u.test(s.name) ? `${s.name} ${initial}.` : s.name;
-}
+// « Jean D. » : prénom + initiale du nom de famille (fournie par le serveur), sauf si le prénom porte déjà une initiale
+const displayName = s => s.initial && !/\s\p{L}\.?$/u.test(s.name) ? `${s.name} ${s.initial}.` : s.name;
 const classes = () => [...new Set(students.map(s => s.className))].sort((a,b) => a.localeCompare(b,'fr',{numeric:true}));
+
+function setView(v){
+  view = v;
+  $('viewGrid').hidden = v !== 'grid'; $('viewAccounts').hidden = v !== 'accounts'; $('viewJournal').hidden = v !== 'journal';
+  $('navAccounts').className = v === 'accounts' ? 'on' : ''; $('navJournal').className = v === 'journal' ? 'on' : '';
+  render();
+}
 
 function render(){
   const cls = classes();
@@ -225,10 +427,10 @@ function render(){
   const ul = $('classes'); ul.innerHTML = '';
   const item = (label, value, n) => {
     const li = document.createElement('li'), b = document.createElement('button');
-    b.className = current === value ? 'on' : '';
+    b.className = view === 'grid' && current === value ? 'on' : '';
     b.innerHTML = '<span></span><small></small>';
     b.children[0].textContent = label; b.children[1].textContent = n;
-    b.onclick = () => { current = value; render(); };
+    b.onclick = () => { current = value; setView('grid'); };
     li.append(b); ul.append(li);
   };
   item('Toutes les classes', ALL, students.length);
@@ -245,16 +447,17 @@ function render(){
   const list = students.filter(s => !current || s.className === current)
     .sort((a,b) => (current ? 0 : a.className.localeCompare(b.className,'fr',{numeric:true})) || displayName(a).localeCompare(displayName(b),'fr'));
   const g = $('grid'); g.innerHTML = '';
-  if (!list.length) { g.innerHTML = '<p class="empty">Aucun élève pour l’instant. Ajoute des photos ci-dessus.</p>'; return; }
+  if (!list.length) { g.innerHTML = `<p class="empty">Aucun élève pour l’instant.${canEdit() ? ' Ajoute des photos ci-dessus.' : ''}</p>`; return; }
   list.forEach(s => {
-    const b = document.createElement('button'); b.className = 'card'; b.title = 'Modifier';
+    // Les lecteurs voient les cartes sans pouvoir les ouvrir
+    const b = document.createElement(canEdit() ? 'button' : 'div'); b.className = 'card';
     b.innerHTML = '<span class="ph"><img alt="" loading="lazy">'
       + (s.noPhotoRights ? '<i class="badge cam" title="Pas de droit à l\'image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 2l20 20"/><path d="M7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16"/><path d="M9.5 4h5L17 7h3a2 2 0 0 1 2 2v7.5"/><path d="M14.12 15.12A3 3 0 1 1 9.88 10.88"/></svg></i>' : '')
       + (s.whatsapp ? '<i class="badge wa" title="Parents dans le groupe WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path transform="translate(7.6 7.6) scale(.37)" fill="currentColor" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></i>' : '')
       + '</span><span></span>';
     b.querySelector('img').src = '/api/photo/' + s.id;
     b.querySelector('.ph + span').textContent = displayName(s);
-    b.onclick = () => editStudent(s);
+    if (canEdit()) { b.title = 'Modifier'; b.onclick = () => editStudent(s); }
     g.append(b);
   });
 }
@@ -272,6 +475,86 @@ function setOrient(o){ $('orient').value = o; $('pageOrient').textContent = '@pa
 try { setOrient(localStorage.getItem('trombi-orient') === 'landscape' ? 'landscape' : 'portrait'); } catch(e){}
 $('orient').onchange = () => { setOrient($('orient').value); try { localStorage.setItem('trombi-orient', $('orient').value); } catch(e){} };
 
+/* ---------- Comptes (super admin) ---------- */
+let users = [];
+const fmtDate = t => t ? new Date(t).toLocaleString('fr-FR', { dateStyle:'short', timeStyle:'short' }) : '—';
+
+async function loadUsers(){
+  users = (await api('users')).users;
+  const todo = users.filter(u => u.status === 'pending' || u.resetRequested).length;
+  $('todoCount').textContent = todo; $('todoCount').hidden = !todo;
+  if (view === 'accounts') renderAccounts();
+}
+$('navAccounts').onclick = () => { setView('accounts'); renderAccounts(); loadUsers().catch(err => alert(err.message)); };
+$('navJournal').onclick = async () => {
+  setView('journal');
+  try {
+    const { entries } = await api('journal');
+    $('journal').innerHTML = entries.map(e => `<tr><td>${fmtDate(e.t)}</td><td>${esc(e.by)}</td><td>${esc(e.action)}</td></tr>`).join('')
+      || '<tr><td colspan="3" class="hint">Aucune action pour l’instant.</td></tr>';
+  } catch(err){ alert(err.message); }
+};
+
+function renderAccounts(){
+  const who = u => `<div class="who"><strong>${esc(u.name)}</strong><small>${esc(u.email)}</small></div>`;
+  const pending = users.filter(u => u.status === 'pending');
+  const resets = users.filter(u => u.resetRequested && u.status === 'active');
+  const active = users.filter(u => u.status === 'active').sort((a,b) => (b.role === 'superadmin') - (a.role === 'superadmin') || a.name.localeCompare(b.name,'fr'));
+  const revoked = users.filter(u => u.status === 'revoked');
+  const section = (title, rows, empty) => `<div class="section"><h3>${title}</h3><div class="rows">${rows.join('') || `<p class="hint">${empty}</p>`}</div></div>`;
+
+  $('accounts').innerHTML =
+    section('À traiter', [
+      ...pending.map(u => `<div class="row todo">${who(u)}<small class="hint">demande du ${fmtDate(u.created)}</small>
+        <div class="acts"><button class="btn small primary" data-act="approve" data-role="editor" data-id="${u.id}">Valider : éditeur</button>
+        <button class="btn small primary" data-act="approve" data-role="reader" data-id="${u.id}">Valider : lecteur</button>
+        <button class="btn small danger" data-act="delete" data-id="${u.id}">Refuser</button></div></div>`),
+      ...resets.map(u => `<div class="row todo">${who(u)}<small class="hint">mot de passe oublié le ${fmtDate(u.resetRequested)}</small>
+        <div class="acts"><button class="btn small primary" data-act="reset" data-id="${u.id}">Créer un mot de passe temporaire</button></div></div>`),
+    ], 'Rien à traiter.')
+    + section('Comptes actifs', active.map(u => `<div class="row">${who(u)}
+        ${u.role === 'superadmin' ? '<small class="hint">Super admin</small>' :
+          `<select data-act="role" data-id="${u.id}" aria-label="Rôle"><option value="editor"${u.role === 'editor' ? ' selected' : ''}>Éditeur</option><option value="reader"${u.role === 'reader' ? ' selected' : ''}>Lecteur</option></select>`}
+        <small class="hint">dernière connexion : ${fmtDate(u.lastLogin)}${u.mustChangePassword ? ' · mot de passe temporaire en cours' : ''}</small>
+        ${u.id === me.id ? '' : `<div class="acts"><button class="btn small" data-act="reset" data-id="${u.id}">Mot de passe temporaire</button>
+        <button class="btn small danger" data-act="revoke" data-id="${u.id}">Révoquer</button></div>`}</div>`), 'Aucun compte actif.')
+    + section('Comptes désactivés', revoked.map(u => `<div class="row">${who(u)}<small class="hint">${ROLE_LABEL[u.role] || ''}</small>
+        <div class="acts"><button class="btn small" data-act="reactivate" data-id="${u.id}">Réactiver</button>
+        <button class="btn small danger" data-act="delete" data-id="${u.id}">Supprimer</button></div></div>`), 'Aucun.');
+}
+
+// Actions sur les comptes ; les actions destructrices demandent un second clic
+$('accounts').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const u = users.find(x => x.id === b.dataset.id); if (!u) return;
+  const act = b.dataset.act;
+  if ((act === 'delete' || act === 'revoke') && !b.classList.contains('sure')) {
+    b.classList.add('sure'); b.textContent = act === 'delete' ? 'Confirmer' : 'Confirmer la révocation'; return;
+  }
+  b.disabled = true;
+  try {
+    if (act === 'approve') await postJSON('users/' + u.id, { role: b.dataset.role, status: 'active' }, 'PATCH');
+    if (act === 'revoke') await postJSON('users/' + u.id, { status: 'revoked' }, 'PATCH');
+    if (act === 'reactivate') await postJSON('users/' + u.id, { status: 'active', role: u.role || 'reader' }, 'PATCH');
+    if (act === 'delete') await api('users/' + u.id, { method:'DELETE' });
+    if (act === 'reset') {
+      const r = await api('users/' + u.id + '/reset', { method:'POST' });
+      $('tempFor').textContent = `Pour ${u.name} (${u.email}) :`; $('tempPwd').textContent = r.tempPassword;
+      $('tempCopy').textContent = 'Copier'; $('tempDlg').showModal();
+    }
+  } catch(err){ alert(err.message); }
+  await loadUsers().catch(() => {});
+});
+$('accounts').addEventListener('change', async e => {
+  const s = e.target.closest('select[data-act="role"]'); if (!s) return;
+  try { await postJSON('users/' + s.dataset.id, { role: s.value }, 'PATCH'); } catch(err){ alert(err.message); }
+  await loadUsers().catch(() => {});
+});
+$('tempCopy').onclick = async () => {
+  try { await navigator.clipboard.writeText($('tempPwd').textContent); $('tempCopy').textContent = 'Copié'; } catch(e){}
+};
+$('tempDlg').addEventListener('close', () => $('tempPwd').textContent = '');
+
 /* ---------- Photos : réduction avant envoi (3:4, 360x480) ---------- */
 function resize(file){
   return new Promise((res, rej) => {
@@ -288,7 +571,7 @@ function resize(file){
   });
 }
 
-/* ---------- Fiche détaillée (chiffrée côté serveur, en clair pour les personnes connectées) ---------- */
+/* ---------- Fiche détaillée (chiffrée côté serveur, visible des éditeurs et du super admin) ---------- */
 const FIELDS = [
   ['lastName','Nom'], ['birthDate','Date de naissance'], ['birthPlace','Lieu de naissance'],
   ['address','Adresse','full'], ['postcode','Code postal'], ['city','Ville'],
@@ -368,8 +651,8 @@ async function addFiles(files){
 
 async function editStudent(s){
   onSave = async ({ name, className, noPhotoRights, whatsapp, fiche }) => {
-    const u = await api('students/' + s.id, { method:'PATCH', headers:{'content-type':'application/json'}, body: JSON.stringify({ name, className, noPhotoRights, whatsapp, fiche }) });
-    delete s.fiche; Object.assign(s, u); render();
+    const u = await postJSON('students/' + s.id, { name, className, noPhotoRights, whatsapp, fiche }, 'PATCH');
+    delete s.fiche; delete s.initial; Object.assign(s, u); render();
   };
   const r = await askDialog({ title:'Modifier', imgSrc:'/api/photo/' + s.id, name:s.name, className:s.className,
                                noPhotoRights: !!s.noPhotoRights, whatsapp: !!s.whatsapp, canDelete:true, student:s });
@@ -385,7 +668,7 @@ drop.onclick = () => $('files').click();
 $('files').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
 drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
 drop.ondragleave = () => drop.classList.remove('over');
-drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); addFiles([...e.dataTransfer.files]); };
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); if (canEdit()) addFiles([...e.dataTransfer.files]); };
 
 start().catch(() => showLogin());
 </script>

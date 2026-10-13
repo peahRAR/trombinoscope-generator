@@ -5,7 +5,8 @@
 //
 // À mettre dans .env (jamais commité) :
 //   SITE_URL=https://ton-site.netlify.app
-//   SITE_PASSWORD=le code d'accès du site
+//   TROMBI_EMAIL=e-mail d'un compte éditeur ou super admin
+//   TROMBI_PASSWORD=son mot de passe
 //
 // Le script n'affiche aucune donnée personnelle hormis le prénom et le nom du fichier.
 // Il ne crée pas d'élève : il complète ceux déjà présents, reconnus par leur prénom et l'initiale du nom.
@@ -25,8 +26,8 @@ if (!dir || !existsSync(dir)) {
 }
 const env = { ...readEnv(".env"), ...process.env };
 const SITE = (env.SITE_URL || "").replace(/\/+$/, "");
-if (!SITE || !env.SITE_PASSWORD) {
-  console.error("SITE_URL et SITE_PASSWORD doivent être définis dans .env");
+if (!SITE || !env.TROMBI_EMAIL || !env.TROMBI_PASSWORD) {
+  console.error("SITE_URL, TROMBI_EMAIL et TROMBI_PASSWORD doivent être définis dans .env");
   process.exit(1);
 }
 
@@ -116,7 +117,9 @@ function matchesStudent(s, firstName, lastName) {
 const files = readdirSync(dir).filter((f) => /\.docx$/i.test(f) && !f.startsWith("~$")).map((f) => join(dir, f));
 if (!files.length) { console.error("Aucun fichier .docx dans " + dir); process.exit(1); }
 
-await api("login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: env.SITE_PASSWORD }) });
+const session = await api("login", { method: "POST", headers: { "content-type": "application/json" },
+  body: JSON.stringify({ email: env.TROMBI_EMAIL, password: env.TROMBI_PASSWORD }) });
+if (session.mustChangePassword) { console.error("Ce compte doit d'abord changer son mot de passe sur le site."); process.exit(1); }
 const { students = [] } = await api("students");
 const report = { updated: [], unchanged: [], notFound: [], ambiguous: [], unreadable: [], noPhotoRights: [], rightsMismatch: [] };
 const byStudent = new Map(); // id élève -> fichiers qui le visent
