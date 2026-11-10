@@ -126,7 +126,30 @@
   .actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
   .actions .left{margin-right:auto}
 
-  @media (max-width:700px){.app{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line)}.grid{grid-template-columns:repeat(3,1fr)!important}}
+  @media (max-width:700px){
+    input,select,textarea{font-size:16px}
+    .app{grid-template-columns:1fr}
+    aside,main{min-width:0}
+    aside{border-right:0;border-bottom:1px solid var(--line);padding:12px 14px;gap:8px}
+    aside h1{font-size:17px;margin:0}
+    .spacer{display:none}
+    #classes{flex-direction:row;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+    #classes li{flex:0 0 auto}
+    #classes .sep{display:none}
+    #classes button{white-space:nowrap;padding:9px 14px}
+    .me{border-top:0;padding-top:4px}
+    main{padding:14px 16px}
+    .toolbar{gap:10px}
+    .toolbar h2{font-size:19px}
+    .grid{grid-template-columns:repeat(3,1fr)!important;gap:8px}
+    .card{padding:6px}
+    .btn,.classes button{min-height:40px}
+    .actions{flex-wrap:wrap}
+    .actions .btn{flex:1 1 auto}
+    .row{padding:12px}
+    .row .who{min-width:100%}
+  }
+  @media (max-width:380px){.grid{grid-template-columns:repeat(2,1fr)!important}}
   @media print{
     @page{margin:12mm}
     body{background:#fff;color:#000}
